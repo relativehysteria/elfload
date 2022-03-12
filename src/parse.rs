@@ -6,10 +6,15 @@ use std::{
     fs::File,
     mem::size_of,
 };
-use crate::err::Error;
+use crate::{
+    err::Error,
+    util::*,
+};
 
-extern {
-    fn sysconf(name: u32) -> u32;
+extern "C" {
+    fn mmap(addr: *mut u8, length: usize, prot: i32,
+            flags: i32, fd: i32, offset: i32) -> *mut u8;
+    fn mprotect(addr: *const u8, len: usize, prot: u32) -> i32;
 }
 
 /// Read bytes from a reader
@@ -108,6 +113,7 @@ pub struct ProgramHeader {
     pub data: Vec<u8>,
 }
 
+// TODO: A lot of unsafe code here, so be sure to validate it
 impl ProgramHeader {
     /// Parse a header from the `reader`.
     ///
@@ -125,12 +131,26 @@ impl ProgramHeader {
         let align    = consume!(reader, u64)?;
 
         // Get the page size
-        let page_size = unsafe { (sysconf(30) - 1) as u64 };
+        let page_size = (get_page_size() - 1) as u64;
+
+        // Prepare the protections for the current allocation of the data:
+        // PROT_READ | PROT_WRITE.
+        // We are going to change this to the flags defined by the phdr later on
+        // when we have the region loaded to memory.
+        let prot = 1 | 2;
+
+        // Prepare the mmap flags: MAP_PRIVATE | MAP_ANONYMOUS
+        let mmap_flags = 2 | 32;
 
         // Prepare the data buffer. Make sure that it is allocated in a page
         // of its own.
         let capacity = ((memsz & (!page_size)) + page_size) as usize;
-        let mut data = Vec::with_capacity(capacity);
+
+        // Create the data Vec
+        let mut data = unsafe {
+            let ptr = mmap(vaddr as *mut u8, capacity, prot, mmap_flags, -1, 0);
+            Vec::from_raw_parts(ptr, 0, capacity)
+        };
 
         if filesz > 0 {
             // Save the current stream position
@@ -149,6 +169,10 @@ impl ProgramHeader {
 
         // Resize the buffer from `filesz` to `memsz`
         data.resize(memsz as usize, 0u8);
+
+        // Change the protection of the mapping to the one specified
+        // by the phdr. Everything is aligned, so we don't need to check it.
+        unsafe { mprotect(data.as_ptr(), data.len(), switch_rx(flags)); }
 
         Ok(Self {
             r#type,
