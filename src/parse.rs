@@ -1,3 +1,5 @@
+//! Logic to parse a file and its program headers
+
 use std::{
     path::Path,
     io::{BufReader, Read, SeekFrom, Seek},

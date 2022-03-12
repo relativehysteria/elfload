@@ -1,3 +1,5 @@
+//! Errors returned by this crate
+
 #[derive(Debug)]
 pub enum Error {
     /// Failed to read a field from the input
@@ -24,5 +26,6 @@ pub enum Error {
     /// An error occurred while seeking for some data
     SeekData(std::io::Error),
 
+    /// Not a single executable section was found
     NoExec,
 }
