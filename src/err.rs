@@ -17,4 +17,12 @@ pub enum Error {
 
     /// Invalid ELF version
     InvalidVersion,
+
+    /// An error occurred while seeking for the program headers
+    SeekPhdr(std::io::Error),
+
+    /// An error occurred while seeking for some data
+    SeekData(std::io::Error),
+
+    NoExec,
 }

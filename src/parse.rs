@@ -1,10 +1,14 @@
 use std::{
     path::Path,
-    io::{BufReader, Read},
+    io::{BufReader, Read, SeekFrom, Seek},
     fs::File,
     mem::size_of,
 };
 use crate::err::Error;
+
+extern {
+    fn sysconf(name: u32) -> u32;
+}
 
 /// Read bytes from a reader
 macro_rules! consume {
@@ -33,8 +37,10 @@ macro_rules! consume {
     }};
 }
 
-/// Parse an ELF from disk
-pub fn parse_elf(path: impl AsRef<Path>) -> Result<(), Error> {
+/// Parse an ELF from disk.
+///
+/// Returns (entry_point, Vec<ProgramHeader>)
+pub fn parse_elf(path: impl AsRef<Path>) -> Result<Vec<ProgramHeader>, Error> {
     // Open the file
     let mut reader =
         BufReader::new(File::open(path).map_err(|e| Error::Open(e))?);
@@ -60,8 +66,8 @@ pub fn parse_elf(path: impl AsRef<Path>) -> Result<(), Error> {
     }
 
     // Skip straight to the entry point
-    let _     = consume!(reader, 17)?;
-    let entry = consume!(reader, u64)?;
+    let _      = consume!(reader, 17)?;
+    let _entry = consume!(reader, u64)?;
 
     // Get the program header table offset
     let phoff = consume!(reader, u64)?;
@@ -70,9 +76,88 @@ pub fn parse_elf(path: impl AsRef<Path>) -> Result<(), Error> {
     let _     = consume!(reader, 16)?;
     let phcnt = consume!(reader, u16)?;
 
-    println!("Entry point:                 0x{:x?}", entry);
-    println!("Program header table offset: 0x{:x?}", phoff);
-    println!("Number of program headers:   {:?}",    phcnt);
+    // Seek to the program headers
+    reader.seek(SeekFrom::Start(phoff)).map_err(Error::SeekPhdr)?;
 
-    Ok(())
+    // Parse the headers
+    let mut phdrs = Vec::new();
+    for _ in 0..phcnt {
+        phdrs.push(ProgramHeader::parse(&mut reader)?);
+    }
+
+    Ok(phdrs)
+}
+
+
+/// The ELF program header
+#[derive(Debug)]
+pub struct ProgramHeader {
+    pub r#type: u32,
+    pub flags:  u32,
+    pub offset: u64,
+    pub vaddr:  u64,
+    pub paddr:  u64,
+    pub filesz: u64,
+    pub memsz:  u64,
+    pub align:  u64,
+
+    /// Data assigned to this program header.
+    /// From `offset` to `filesz`
+    pub data: Vec<u8>,
+}
+
+impl ProgramHeader {
+    /// Parse a header from the `reader`.
+    ///
+    /// This function expects that the `reader` is already positioned
+    /// at the beginning of the header.
+    pub fn parse(reader: &mut BufReader<File>) -> Result<Self, Error> {
+        // Parse the header
+        let r#type   = consume!(reader, u32)?;
+        let flags    = consume!(reader, u32)?;
+        let offset   = consume!(reader, u64)?;
+        let vaddr    = consume!(reader, u64)?;
+        let paddr    = consume!(reader, u64)?;
+        let filesz   = consume!(reader, u64)?;
+        let memsz    = consume!(reader, u64)?;
+        let align    = consume!(reader, u64)?;
+
+        // Get the page size
+        let page_size = unsafe { (sysconf(30) - 1) as u64 };
+
+        // Prepare the data buffer. Make sure that it is allocated in a page
+        // of its own.
+        let capacity = ((memsz & (!page_size)) + page_size) as usize;
+        let mut data = Vec::with_capacity(capacity);
+
+        if filesz > 0 {
+            // Save the current stream position
+            let pos = reader.stream_position().map_err(Error::SeekData)?;
+
+            // Resize the vector so that we can read exactly `filesz`
+            data.resize(filesz as usize, 0u8);
+
+            // Seek to the header's data section
+            reader.seek(SeekFrom::Start(offset)).map_err(Error::SeekData)?;
+            reader.read_exact(&mut data).map_err(|e| Error::Read(e))?;
+
+            // Seek back to the end of the header
+            reader.seek(SeekFrom::Start(pos)).map_err(Error::SeekData)?;
+        }
+
+        // Resize the buffer from `filesz` to `memsz`
+        data.resize(memsz as usize, 0u8);
+
+        Ok(Self {
+            r#type,
+            flags,
+            offset,
+            vaddr,
+            paddr,
+            filesz,
+            memsz,
+            align,
+            data
+        })
+    }
 }
