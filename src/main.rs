@@ -42,14 +42,16 @@ fn main() {
             let mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
             // Map the buffer into memory
-            let vaddr = page_align(phdr.vaddr + BASE) as *mut u8;
-            let ptr = unsafe {
-                mmap(vaddr, phdr.memsz as usize, prot, mmap_flags, !0, 0)
-            };
+            let vaddr   = page_align(phdr.vaddr);
+            let padding = (phdr.vaddr - vaddr) as usize;
+            let len     = padding + (phdr.memsz as usize);
+            let vaddr   = (vaddr + BASE) as *mut u8;
+            let ptr = unsafe { mmap(vaddr, len, prot, mmap_flags, !0, 0) };
 
             // Copy the data into it
             unsafe {
-                let dst = std::slice::from_raw_parts_mut(ptr, phdr.data.len());
+                let dst = std::slice::from_raw_parts_mut(vaddr.add(padding),
+                                                         phdr.data.len());
                 dst.copy_from_slice(&phdr.data[..]);
             }
 
