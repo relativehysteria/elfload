@@ -29,15 +29,11 @@ fn main() {
         // Only get the loadable ones
         let phdrs = phdrs.into_iter()
             .filter(|hdr| hdr.r#type == PT_LOAD)
+            .filter(|hdr| hdr.memsz != 0)
             .collect::<Vec<ProgramHeader>>();
 
         // Load the segments to memory
         for phdr in phdrs.iter() {
-            // Skip zero-length memory sections
-            if phdr.memsz == 0 {
-                continue;
-            }
-
             // Prepare the protections for the current allocation of the data:
             // PROT_READ | PROT_WRITE.
             let prot = PROT_READ | PROT_WRITE;
