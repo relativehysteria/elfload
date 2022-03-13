@@ -67,17 +67,17 @@ pub fn parse_elf(path: impl AsRef<Path>) -> Result<Vec<ProgramHeader>, Error> {
 
     // Skip straight to the entry point
     let _      = consume!(reader, 17)?;
-    let _entry = consume!(reader, u64)?;
+    let _entry = consume!(reader, usize)?;
 
     // Get the program header table offset
-    let phoff = consume!(reader, u64)?;
+    let phoff = consume!(reader, usize)?;
 
     // Skip straight to the number of program headers
     let _     = consume!(reader, 16)?;
     let phcnt = consume!(reader, u16)?;
 
     // Seek to the program headers
-    reader.seek(SeekFrom::Start(phoff)).map_err(Error::SeekPhdr)?;
+    reader.seek(SeekFrom::Start(phoff as u64)).map_err(Error::SeekPhdr)?;
 
     // Parse the headers
     let mut phdrs = Vec::new();
@@ -94,12 +94,12 @@ pub fn parse_elf(path: impl AsRef<Path>) -> Result<Vec<ProgramHeader>, Error> {
 pub struct ProgramHeader {
     pub r#type: u32,
     pub flags:  u32,
-    pub offset: u64,
-    pub vaddr:  u64,
-    pub paddr:  u64,
-    pub filesz: u64,
-    pub memsz:  u64,
-    pub align:  u64,
+    pub offset: usize,
+    pub vaddr:  usize,
+    pub paddr:  usize,
+    pub filesz: usize,
+    pub memsz:  usize,
+    pub align:  usize,
 
     /// Data assigned to this program header.
     /// From `offset` to `filesz`
@@ -116,12 +116,12 @@ impl ProgramHeader {
         // Parse the header
         let r#type   = consume!(reader, u32)?;
         let flags    = consume!(reader, u32)?;
-        let offset   = consume!(reader, u64)?;
-        let vaddr    = consume!(reader, u64)?;
-        let paddr    = consume!(reader, u64)?;
-        let filesz   = consume!(reader, u64)?;
-        let memsz    = consume!(reader, u64)?;
-        let align    = consume!(reader, u64)?;
+        let offset   = consume!(reader, usize)?;
+        let vaddr    = consume!(reader, usize)?;
+        let paddr    = consume!(reader, usize)?;
+        let filesz   = consume!(reader, usize)?;
+        let memsz    = consume!(reader, usize)?;
+        let align    = consume!(reader, usize)?;
         let mut data = Vec::new();
 
         if filesz > 0 {
@@ -129,10 +129,11 @@ impl ProgramHeader {
             let pos = reader.stream_position().map_err(Error::SeekData)?;
 
             // Resize the vector so that we can read exactly `filesz`
-            data.resize(filesz as usize, 0u8);
+            data.resize(filesz, 0u8);
 
             // Seek to the header's data section
-            reader.seek(SeekFrom::Start(offset)).map_err(Error::SeekData)?;
+            reader.seek(SeekFrom::Start(offset as u64))
+                .map_err(Error::SeekData)?;
             reader.read_exact(&mut data).map_err(|e| Error::Read(e))?;
 
             // Seek back to the end of the header
@@ -140,7 +141,7 @@ impl ProgramHeader {
         }
 
         // Resize the buffer from `filesz` to `memsz`
-        data.resize(memsz as usize, 0u8);
+        data.resize(memsz, 0u8);
 
         Ok(Self {
             r#type,

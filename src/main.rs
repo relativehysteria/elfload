@@ -10,12 +10,17 @@ extern "C" {
     fn mprotect(addr: *const u8, len: usize, prot: u32) -> i32;
 }
 
-const BASE: u64 = 0x400_000;
+const BASE: usize = 0x400_000;
 
 // TODO:
 //     * Unsafe validation
 //     * Better way to jump to the entry point
 fn main() {
+    // Make sure that we are running as a 64-bit binary
+    if !(cfg!(target_pointer_width = "64")) {
+        return;
+    }
+
     // Pointers to loaded segments in memory
     let mut loaded = Vec::new();
 
@@ -43,8 +48,8 @@ fn main() {
 
             // Map the buffer into memory
             let vaddr   = page_align(phdr.vaddr);
-            let padding = (phdr.vaddr - vaddr) as usize;
-            let len     = padding + (phdr.memsz as usize);
+            let padding = phdr.vaddr - vaddr;
+            let len     = padding + phdr.memsz;
             let vaddr   = (vaddr + BASE) as *mut u8;
             let ptr = unsafe { mmap(vaddr, len, prot, mmap_flags, !0, 0) };
 
@@ -63,7 +68,7 @@ fn main() {
 
             // Change the protection of the mapping to the one specified
             // by the phdr.
-            unsafe { mprotect(ptr, phdr.memsz as usize, flags); }
+            unsafe { mprotect(ptr, phdr.memsz, flags); }
 
             loaded.push(ptr);
         }
