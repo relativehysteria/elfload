@@ -40,7 +40,8 @@ macro_rules! consume {
 /// Parse an ELF from disk.
 ///
 /// Returns (entry_point, Vec<ProgramHeader>)
-pub fn parse_elf(path: impl AsRef<Path>) -> Result<Vec<ProgramHeader>, Error> {
+pub fn parse_elf(path: impl AsRef<Path>)
+    -> Result<(usize, Vec<ProgramHeader>), Error> {
     // Open the file
     let mut reader =
         BufReader::new(File::open(path).map_err(|e| Error::Open(e))?);
@@ -66,14 +67,14 @@ pub fn parse_elf(path: impl AsRef<Path>) -> Result<Vec<ProgramHeader>, Error> {
     }
 
     // Skip straight to the entry point
-    let _      = consume!(reader, 17)?;
-    let _entry = consume!(reader, usize)?;
+    let _____ = consume!(reader, 17)?;
+    let entry = consume!(reader, usize)?;
 
     // Get the program header table offset
     let phoff = consume!(reader, usize)?;
 
     // Skip straight to the number of program headers
-    let _     = consume!(reader, 16)?;
+    let _____ = consume!(reader, 16)?;
     let phcnt = consume!(reader, u16)?;
 
     // Seek to the program headers
@@ -85,7 +86,7 @@ pub fn parse_elf(path: impl AsRef<Path>) -> Result<Vec<ProgramHeader>, Error> {
         phdrs.push(ProgramHeader::parse(&mut reader)?);
     }
 
-    Ok(phdrs)
+    Ok((entry, phdrs))
 }
 
 
@@ -106,7 +107,6 @@ pub struct ProgramHeader {
     pub data: Vec<u8>,
 }
 
-// TODO: A lot of unsafe code here, so be sure to validate it
 impl ProgramHeader {
     /// Parse a header from the `reader`.
     ///

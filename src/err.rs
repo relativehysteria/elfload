@@ -20,12 +20,21 @@ pub enum Error {
     /// Invalid ELF version
     InvalidVersion,
 
-    /// An error occurred while seeking for the program headers
+    /// An error has occurred while seeking for the program headers
     SeekPhdr(std::io::Error),
 
-    /// An error occurred while seeking for some data
+    /// An error has occurred while seeking for some data
     SeekData(std::io::Error),
 
     /// Not a single executable section was found
     NoExec,
+
+    /// A generic error has occurred while executing `mmap`
+    Mmap,
+
+    /// A generic error has occurred while executing `mprotect`
+    Mprotect,
+
+    /// The specified entry point is invalid
+    InvalidEntry,
 }
