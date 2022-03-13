@@ -10,7 +10,7 @@ extern "C" {
     fn mprotect(addr: *const u8, len: usize, prot: u32) -> i32;
 }
 
-const OFFSET: u64 = 0x400_000;
+const BASE: u64 = 0x400_000;
 
 // TODO:
 //     * Unsafe validation
@@ -33,8 +33,10 @@ fn main() {
 
         // Load the segments to memory
         for phdr in phdrs.iter() {
-            // Get the page size
-            let page_size = (get_page_size() - 1) as u64;
+            // Skip zero-length memory sections
+            if phdr.memsz == 0 {
+                continue;
+            }
 
             // Prepare the protections for the current allocation of the data:
             // PROT_READ | PROT_WRITE.
@@ -43,12 +45,11 @@ fn main() {
             // Prepare the mmap flags: MAP_PRIVATE | MAP_ANONYMOUS
             let mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-            // Make sure the buffer is allocated in a page of its own.
-            let capacity = ((phdr.memsz & (!page_size)) + page_size) as usize;
-
             // Map the buffer into memory
-            let vaddr = (phdr.vaddr + OFFSET) as *mut u8;
-            let ptr = unsafe { mmap(vaddr, capacity, prot, mmap_flags, !0, 0) };
+            let vaddr = page_align(phdr.vaddr + BASE) as *mut u8;
+            let ptr = unsafe {
+                mmap(vaddr, phdr.memsz as usize, prot, mmap_flags, !0, 0)
+            };
 
             // Copy the data into it
             unsafe {
@@ -64,7 +65,7 @@ fn main() {
 
             // Change the protection of the mapping to the one specified
             // by the phdr.
-            unsafe { mprotect(ptr, capacity, flags); }
+            unsafe { mprotect(ptr, phdr.memsz as usize, flags); }
 
             loaded.push(ptr);
         }

@@ -3,8 +3,13 @@ extern "C" {
 }
 
 /// Returns the current's system page size
-pub fn get_page_size() -> u32 {
-    unsafe { sysconf(30) }
+pub fn get_page_size() -> u64 {
+    (unsafe { sysconf(30) }) as u64
+}
+
+/// Align an address to the upper page boundary
+pub fn page_align(addr: u64) -> u64 {
+    addr & !(get_page_size() as u64 - 1)
 }
 
 /// This functions switches flags from `RWX` to `XWR` and vice-versa.
