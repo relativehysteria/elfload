@@ -12,6 +12,7 @@ use elfload::{
 };
 
 const BASE: usize = 0x400_000;
+const NAME: &str  = "samples/hi_there_pie";
 
 fn main() {
     // Make sure that we are running as a 64-bit binary
@@ -29,7 +30,7 @@ fn main() {
 
     {
         // Open the file for reading
-        let mut reader = BufReader::new(File::open("samples/hi_there_pie")
+        let mut reader = BufReader::new(File::open(NAME)
            .map_err(|e| Error::Open(e)).unwrap());
 
         // Parse all the segments
