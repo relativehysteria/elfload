@@ -20,6 +20,9 @@ pub enum Error {
     /// Invalid ELF version
     InvalidVersion,
 
+    /// Invalid segment type in a program header
+    InvalidSegmentType(u32),
+
     /// An error has occurred while seeking for the program headers
     SeekPhdr(std::io::Error),
 

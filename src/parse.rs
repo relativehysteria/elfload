@@ -5,7 +5,7 @@ use std::{
 };
 use crate::{
     err::Error,
-    ProgramHeader,
+    phdr::ProgramHeader,
 };
 
 /// Read bytes from a reader

@@ -4,5 +4,4 @@ pub mod util;
 pub mod constants;
 pub mod memory;
 
-mod phdr;
-pub use phdr::ProgramHeader;
+pub mod phdr;
