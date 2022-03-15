@@ -1,3 +1,7 @@
+use std::{
+    io::{BufReader, Read, SeekFrom, Seek},
+    fs::File,
+};
 use elfload::{
     ProgramHeader,
     err::Error,
@@ -24,8 +28,12 @@ fn main() {
     let mut valid_entry = false;
 
     {
+        // Open the file for reading
+        let mut reader = BufReader::new(File::open("samples/hi_there_pie")
+           .map_err(|e| Error::Open(e)).unwrap());
+
         // Parse all the segments
-        let (ep, phdrs) = parse_elf("samples/hi_there_pie").unwrap();
+        let (ep, phdrs) = parse_elf(&mut reader).unwrap();
         entry = (ep + BASE) as *const u8;
 
         // Only get the loadable ones
@@ -43,11 +51,23 @@ fn main() {
             let vaddr   = (vaddr + BASE) as *mut u8;
             let ptr = memmap(vaddr as *const u8, len).unwrap();
 
-            // Copy the data into it
-            unsafe {
-                let dst = std::slice::from_raw_parts_mut(vaddr.add(padding),
-                                                         phdr.memsz);
-                dst.copy_from_slice(&phdr.data[..]);
+            // If there is any data in the file, copy it into the buffer
+            if phdr.filesz > 0 {
+                // Seek to the data section
+                reader.seek(SeekFrom::Start(phdr.offset as u64))
+                    .map_err(Error::SeekData)
+                    .unwrap();
+
+                // Copy the data into the buffer
+                unsafe {
+                    let mut dst = std::slice::from_raw_parts_mut(
+                        vaddr.add(padding),
+                        phdr.memsz
+                    );
+                    reader.read_exact(&mut dst)
+                        .map_err(|e| Error::Read(e))
+                        .unwrap();
+                }
             }
 
             // If this section is executable, check if the ep points to it.

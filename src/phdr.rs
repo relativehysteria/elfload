@@ -1,6 +1,6 @@
 //! The ELF program header
 use std::{
-    io::{BufReader, Read, SeekFrom, Seek},
+    io::{BufReader, Read},
     fs::File,
 };
 use crate::{
@@ -19,10 +19,6 @@ pub struct ProgramHeader {
     pub filesz: usize,
     pub memsz:  usize,
     pub align:  usize,
-
-    /// Data assigned to this program header.
-    /// From `offset` to `filesz`
-    pub data: Vec<u8>,
 }
 
 impl ProgramHeader {
@@ -40,26 +36,6 @@ impl ProgramHeader {
         let filesz   = consume!(reader, usize)?;
         let memsz    = consume!(reader, usize)?;
         let align    = consume!(reader, usize)?;
-        let mut data = Vec::new();
-
-        if filesz > 0 {
-            // Save the current stream position
-            let pos = reader.stream_position().map_err(Error::SeekData)?;
-
-            // Resize the vector so that we can read exactly `filesz`
-            data.resize(filesz, 0u8);
-
-            // Seek to the header's data section
-            reader.seek(SeekFrom::Start(offset as u64))
-                .map_err(Error::SeekData)?;
-            reader.read_exact(&mut data).map_err(|e| Error::Read(e))?;
-
-            // Seek back to the end of the header
-            reader.seek(SeekFrom::Start(pos)).map_err(Error::SeekData)?;
-        }
-
-        // Resize the buffer from `filesz` to `memsz`
-        data.resize(memsz, 0u8);
 
         Ok(Self {
             r#type,
@@ -70,7 +46,6 @@ impl ProgramHeader {
             filesz,
             memsz,
             align,
-            data
         })
     }
 }

@@ -1,6 +1,5 @@
 //! Logic to parse a file and its program headers
 use std::{
-    path::Path,
     io::{BufReader, Read, SeekFrom, Seek},
     fs::File,
 };
@@ -41,12 +40,8 @@ macro_rules! consume {
 /// Parse an ELF from disk.
 ///
 /// Returns (entry_point, Vec<ProgramHeader>)
-pub fn parse_elf(path: impl AsRef<Path>)
+pub fn parse_elf(reader: &mut BufReader<File>)
     -> Result<(usize, Vec<ProgramHeader>), Error> {
-    // Open the file
-    let mut reader =
-        BufReader::new(File::open(path).map_err(|e| Error::Open(e))?);
-
     // Verify the ELF magic
     if &consume!(reader, 4)? != b"\x7FELF" {
         return Err(Error::InvalidMagic);
@@ -84,7 +79,7 @@ pub fn parse_elf(path: impl AsRef<Path>)
     // Parse the headers
     let mut phdrs = Vec::new();
     for _ in 0..phcnt {
-        phdrs.push(ProgramHeader::parse(&mut reader)?);
+        phdrs.push(ProgramHeader::parse(reader)?);
     }
 
     Ok((entry, phdrs))
