@@ -1,4 +1,5 @@
 use elfload::{
+    ProgramHeader,
     err::Error,
     parse::*,
     util::*,
