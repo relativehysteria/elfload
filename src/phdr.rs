@@ -33,7 +33,7 @@ pub enum SegmentType {
 /// The ELF program header
 #[derive(Debug)]
 pub struct ProgramHeader {
-    pub r#type: Result<SegmentType, Error>,
+    pub r#type: SegmentType,
     pub flags:  u32,
     pub offset: usize,
     pub vaddr:  usize,
@@ -59,9 +59,9 @@ impl ProgramHeader {
         let memsz  = consume!(reader, usize)?;
         let align  = consume!(reader, usize)?;
 
-        // Convert the type into a result
+        // Convert the bytes into a type
         let r#type = SegmentType::try_from(r#type)
-            .map_err(|e| Error::InvalidSegmentType(e.number));
+            .map_err(|e| Error::InvalidSegmentType(e.number))?;
 
         Ok(Self {
             r#type,

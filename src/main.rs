@@ -40,7 +40,7 @@ fn main() {
         // Only get the loadable ones
         let phdrs = phdrs.into_iter()
             .inspect(|hdr| println!("{hdr:x?}"))
-            .filter(|hdr| matches!(hdr.r#type, Ok(SegmentType::Load)))
+            .filter(|hdr| matches!(hdr.r#type, SegmentType::Load))
             .filter(|hdr| hdr.memsz != 0)
             .collect::<Vec<ProgramHeader>>();
 
