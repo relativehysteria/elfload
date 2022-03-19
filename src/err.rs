@@ -33,13 +33,13 @@ pub enum Error {
     NoExec,
 
     /// A generic error has occurred while executing `mmap`
-    Mmap,
+    Mmap(*const u8, usize),
 
     /// A generic error has occurred while executing `mprotect`
-    Mprotect,
+    Mprotect(*const u8, usize, u32),
 
     /// The specified entry point is invalid
-    InvalidEntry,
+    InvalidEntry(*const u8),
 
     /// A generic error thrown when the data isn't of expected size
     InvalidDataSize(usize),

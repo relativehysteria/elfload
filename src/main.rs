@@ -97,6 +97,6 @@ fn main() {
             entry();
         }
     } else {
-        Err(Error::InvalidEntry).unwrap()
+        Err(Error::InvalidEntry(entry)).unwrap()
     }
 }

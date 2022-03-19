@@ -18,7 +18,7 @@ pub fn memmap(addr: *const u8, length: usize) -> Result<*const u8, Error> {
     let ptr = unsafe { mmap(addr, length, prot, flags, !0, 0) };
 
     if ptr != addr {
-        Err(Error::Mmap)
+        Err(Error::Mmap(addr, length))
     } else {
         Ok(ptr)
     }
@@ -28,7 +28,7 @@ pub fn memmap(addr: *const u8, length: usize) -> Result<*const u8, Error> {
 /// Changes the memory protections of an `addr`
 pub fn memprotect(addr: *const u8, length: usize, prot: u32) -> Result<(), Error> {
     match unsafe { mprotect(addr, length, prot) } {
-        -1 => Err(Error::Mprotect),
+        -1 => Err(Error::Mprotect(addr, length, prot)),
         __ => Ok(()),
     }
 }
