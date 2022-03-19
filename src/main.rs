@@ -12,7 +12,7 @@ use elfload::{
 };
 
 const BASE: usize = 0x400_000;
-const NAME: &str  = "samples/hi_there_pie";
+const NAME: &str  = "samples/hi_mov_pie";
 
 fn main() {
     // Make sure that we are running as a 64-bit binary
@@ -39,7 +39,6 @@ fn main() {
 
         // Only get the loadable ones
         let phdrs = phdrs.into_iter()
-            .inspect(|hdr| println!("{hdr:x?}"))
             .filter(|hdr| matches!(hdr.r#type, SegmentType::Load))
             .filter(|hdr| hdr.memsz != 0)
             .collect::<Vec<ProgramHeader>>();
@@ -57,7 +56,7 @@ fn main() {
             if phdr.filesz > 0 {
                 // Seek to the data section
                 reader.seek(SeekFrom::Start(phdr.offset as u64))
-                    .map_err(Error::SeekData)
+                    .map_err(Error::Seek)
                     .unwrap();
 
                 // Copy the data into the buffer

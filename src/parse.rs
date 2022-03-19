@@ -74,7 +74,7 @@ pub fn parse_elf(reader: &mut BufReader<File>)
     let phcnt = consume!(reader, u16)?;
 
     // Seek to the program headers
-    reader.seek(SeekFrom::Start(phoff as u64)).map_err(Error::SeekPhdr)?;
+    reader.seek(SeekFrom::Start(phoff as u64)).map_err(Error::Seek)?;
 
     // Parse the headers
     let mut phdrs = Vec::new();

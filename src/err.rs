@@ -23,11 +23,11 @@ pub enum Error {
     /// Invalid segment type in a program header
     InvalidSegmentType(u32),
 
-    /// An error has occurred while seeking for the program headers
-    SeekPhdr(std::io::Error),
+    /// Invalid dynamic tag was found
+    InvalidDynamicTag(usize),
 
-    /// An error has occurred while seeking for some data
-    SeekData(std::io::Error),
+    /// An error has occurred while seeking somewhere
+    Seek(std::io::Error),
 
     /// Not a single executable section was found
     NoExec,
@@ -40,4 +40,7 @@ pub enum Error {
 
     /// The specified entry point is invalid
     InvalidEntry,
+
+    /// A generic error thrown when the data isn't of expected size
+    InvalidDataSize(usize),
 }
