@@ -1,3 +1,5 @@
+//! Constants needed to parse ELF files
+
 pub const PROT_READ: u32  = 1 << 0;
 pub const PROT_WRITE: u32 = 1 << 1;
 pub const PROT_EXEC: u32  = 1 << 2;

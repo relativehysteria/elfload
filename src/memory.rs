@@ -1,5 +1,7 @@
+//! Wrappers around raw C memory functions
+
 use crate::{
-    err::Error,
+    Error,
     constants::*,
 };
 
@@ -10,7 +12,9 @@ extern "C" {
 }
 
 /// Creates a `PROT_READ | PROT_WRITE`, `MAP_PRIVATE | MAP_ANONYMOUS` mapping in
-/// memory. If you want to change the protections, use `memprotect`
+/// memory.
+///
+/// If you want to change the protections, use `memprotect`
 pub fn memmap(addr: *const u8, length: usize) -> Result<*const u8, Error> {
     let prot  = PROT_READ   | PROT_WRITE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS;

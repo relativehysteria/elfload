@@ -5,7 +5,7 @@ use std::{
 };
 use num_enum::TryFromPrimitive;
 use crate::{
-    err::Error,
+    Error,
     consume,
 };
 

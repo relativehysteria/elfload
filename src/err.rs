@@ -1,5 +1,4 @@
-//! Errors returned by this crate
-
+/// Errors returned by this crate
 #[derive(Debug)]
 pub enum Error {
     /// Failed to read a field from the input

@@ -4,7 +4,7 @@ use std::{
     fs::File,
 };
 use crate::{
-    err::Error,
+    Error,
     phdr::ProgramHeader,
 };
 

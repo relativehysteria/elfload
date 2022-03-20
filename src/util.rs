@@ -1,3 +1,5 @@
+//! Various utilities
+
 extern "C" {
     fn sysconf(name: u32) -> u32;
 }
@@ -7,7 +9,7 @@ pub fn get_page_size() -> usize {
     (unsafe { sysconf(30) }) as usize
 }
 
-/// Align an address to the upper page boundary
+/// Align an address to the lower page boundary
 pub fn page_align(addr: usize) -> usize{
     addr & !(get_page_size() - 1)
 }

@@ -3,8 +3,8 @@ use std::{
     fs::File,
 };
 use elfload::{
+    Error,
     phdr::*,
-    err::Error,
     parse::*,
     util::*,
     constants::*,
@@ -12,7 +12,7 @@ use elfload::{
 };
 
 const BASE: usize = 0x400_000;
-const NAME: &str  = "samples/hi_mov_pie";
+const NAME: &str  = "samples/hi_there_pie";
 
 fn main() {
     // Make sure that we are running as a 64-bit binary
