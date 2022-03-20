@@ -36,6 +36,13 @@ impl SectionContents {
             let tag = usize::from_le_bytes(entry[..8].try_into().unwrap());
             let tag = DynamicTag::try_from(tag)
                 .map_err(|e| Error::InvalidDynamicTag(e.number))?;
+
+            // Break once we get NULL. Nothing else follows NULL
+            if matches!(tag, DynamicTag::Null) {
+                break
+            }
+
+            // Push the entry into the vec
             entries.push(DynamicEntry { tag, val });
         }
 
