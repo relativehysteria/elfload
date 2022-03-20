@@ -1,6 +1,5 @@
 use std::{
-    io::{BufReader, Read, SeekFrom, Seek},
-    fs::File,
+    io::{Read, SeekFrom, Seek},
 };
 use elfload::{
     Error,
@@ -23,28 +22,26 @@ fn main() {
     // Pointers to loaded segments in memory
     let mut loaded = Vec::new();
 
-    // Entry point. `valid_entry` is changed later on when we validate that the
+    // This is changed later on when we validate that the
     // ep actually points to an executable section
-    let entry: *const u8;
     let mut valid_entry = false;
 
-    {
-        // Open the file for reading
-        let mut reader = BufReader::new(File::open(NAME)
-           .map_err(|e| Error::Open(e)).unwrap());
+    let entry = {
+        // Parse the file
+        let mut elf = ELF::parse(NAME).unwrap();
 
-        // Parse all the segments
-        let (ep, phdrs) = parse_elf(&mut reader).unwrap();
-        entry = (ep + BASE) as *const u8;
+        // Add the `BASE` to the entry point
+        elf.entry += BASE;
 
-        // Only get the loadable ones
-        let phdrs = phdrs.into_iter()
+        // Get the file's loadable segments
+        let loadable = elf.phdrs.iter()
+            .inspect(|hdr| println!("{hdr:x?}"))
             .filter(|hdr| matches!(hdr.r#type, SegmentType::Load))
             .filter(|hdr| hdr.memsz != 0)
-            .collect::<Vec<ProgramHeader>>();
+            .collect::<Vec<&ProgramHeader>>();
 
         // Load the segments to memory
-        for phdr in phdrs.iter() {
+        for phdr in loadable.iter() {
             // Map the buffer into memory
             let vaddr   = page_align(phdr.vaddr);
             let padding = phdr.vaddr - vaddr;
@@ -55,7 +52,7 @@ fn main() {
             // If there is any data in the file, copy it into the buffer
             if phdr.filesz > 0 {
                 // Seek to the data section
-                reader.seek(SeekFrom::Start(phdr.offset as u64))
+                elf.reader.seek(SeekFrom::Start(phdr.offset as u64))
                     .map_err(Error::Seek)
                     .unwrap();
 
@@ -65,7 +62,7 @@ fn main() {
                         vaddr.add(padding),
                         phdr.memsz
                     );
-                    reader.read_exact(&mut dst)
+                    elf.reader.read_exact(&mut dst)
                         .map_err(|e| Error::Read(e))
                         .unwrap();
                 }
@@ -76,9 +73,8 @@ fn main() {
             let flags = switch_rx(phdr.flags);
             if flags & PROT_EXEC == PROT_EXEC {
                 if !valid_entry {
-                    let entry = entry as usize;
-                    let ptr   = ptr as usize;
-                    valid_entry = entry >= ptr && entry < (ptr + len);
+                    let ptr = ptr as usize;
+                    valid_entry = elf.entry >= ptr && elf.entry < (ptr + len);
                 }
             }
 
@@ -88,7 +84,9 @@ fn main() {
 
             loaded.push(ptr);
         }
-    }
+
+        elf.entry as *const u8
+    };
 
     // Jump to the entry point
     if valid_entry {

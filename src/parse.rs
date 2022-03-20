@@ -2,6 +2,7 @@
 use std::{
     io::{BufReader, Read, SeekFrom, Seek},
     fs::File,
+    path::Path,
 };
 use crate::{
     Error,
@@ -37,50 +38,69 @@ macro_rules! consume {
     }};
 }
 
-/// Parse an ELF from disk.
-///
-/// Returns (entry_point, Vec<ProgramHeader>)
-pub fn parse_elf(reader: &mut BufReader<File>)
-    -> Result<(usize, Vec<ProgramHeader>), Error> {
-    // Verify the ELF magic
-    if &consume!(reader, 4)? != b"\x7FELF" {
-        return Err(Error::InvalidMagic);
+/// An ELF file and data associated with it
+pub struct ELF {
+    /// Reader that bound to the file on disk
+    pub reader: BufReader<File>,
+
+    /// Program headers of the file
+    pub phdrs: Vec<ProgramHeader>,
+
+    /// Entry point of the executable
+    pub entry: usize,
+}
+
+impl ELF {
+    /// Parse an ELF file from disk.
+    pub fn parse(path: impl AsRef<Path>) -> Result<Self, Error> {
+        // Open the file
+        let mut reader = BufReader::new(File::open(path)
+            .map_err(|e| Error::Open(e))?);
+
+        // Verify the ELF magic
+        if &consume!(reader, 4)? != b"\x7FELF" {
+            return Err(Error::InvalidMagic);
+        }
+
+        // Verify the bitness (64b is expected)
+        if consume!(reader)? != 2 {
+            return Err(Error::InvalidBits);
+        }
+
+        // Verify the endianness (little endian is expected)
+        if consume!(reader)? != 1 {
+            return Err(Error::InvalidEndian);
+        }
+
+        // Verify the version
+        if consume!(reader)? != 1 {
+            return Err(Error::InvalidVersion);
+        }
+
+        // Skip straight to the entry point
+        let _____ = consume!(reader, 17)?;
+        let entry = consume!(reader, usize)?;
+
+        // Get the program header table offset
+        let phoff = consume!(reader, usize)?;
+
+        // Skip straight to the number of program headers
+        let _____ = consume!(reader, 16)?;
+        let phcnt = consume!(reader, u16)?;
+
+        // Seek to the program headers
+        reader.seek(SeekFrom::Start(phoff as u64)).map_err(Error::Seek)?;
+
+        // Parse the headers
+        let mut phdrs = Vec::new();
+        for _ in 0..phcnt {
+            phdrs.push(ProgramHeader::parse(&mut reader)?);
+        }
+
+        Ok(Self {
+            reader,
+            entry,
+            phdrs,
+        })
     }
-
-    // Verify the bitness (64b is expected)
-    if consume!(reader)? != 2 {
-        return Err(Error::InvalidBits);
-    }
-
-    // Verify the endianness (little endian is expected)
-    if consume!(reader)? != 1 {
-        return Err(Error::InvalidEndian);
-    }
-
-    // Verify the version
-    if consume!(reader)? != 1 {
-        return Err(Error::InvalidVersion);
-    }
-
-    // Skip straight to the entry point
-    let _____ = consume!(reader, 17)?;
-    let entry = consume!(reader, usize)?;
-
-    // Get the program header table offset
-    let phoff = consume!(reader, usize)?;
-
-    // Skip straight to the number of program headers
-    let _____ = consume!(reader, 16)?;
-    let phcnt = consume!(reader, u16)?;
-
-    // Seek to the program headers
-    reader.seek(SeekFrom::Start(phoff as u64)).map_err(Error::Seek)?;
-
-    // Parse the headers
-    let mut phdrs = Vec::new();
-    for _ in 0..phcnt {
-        phdrs.push(ProgramHeader::parse(reader)?);
-    }
-
-    Ok((entry, phdrs))
 }

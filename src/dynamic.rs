@@ -1,5 +1,6 @@
 //! Dynamic segment structs and funcs
 use num_enum::TryFromPrimitive;
+use crate::Error;
 
 /// Entry in a dynamic section
 #[derive(Debug)]
@@ -49,4 +50,39 @@ pub enum DynamicTag {
     GnuHash     = 0x6FFF_FEF5,
     Flags1      = 0x6FFF_FFFB,
     RelaCount   = 0x6FFF_FFF9,
+}
+
+/// Struct holding data used to handle relative relocations etc as defined by
+/// `Elf_Rela`
+///
+/// `r_info` is split into `r#type` and `sym`
+#[derive(Debug)]
+pub struct Rela {
+    pub offset: usize,
+    pub r#type: u32,
+    pub symbol: u32,
+    pub addend: usize,
+}
+
+impl Rela {
+    /// Parse data as `Rela`
+    pub fn parse(data: &[u8]) -> Result<Self, Error> {
+        // Check if we have a valid data size
+        if data.len() != 24 {
+            return Err(Error::InvalidDataSize(data.len()));
+        }
+
+        // Parse the data
+        let offset = usize::from_le_bytes(data[..8].try_into().unwrap());
+        let r#type = u32::from_le_bytes(data[8..12].try_into().unwrap());
+        let symbol = u32::from_le_bytes(data[12..16].try_into().unwrap());
+        let addend = usize::from_le_bytes(data[16..].try_into().unwrap());
+
+        Ok(Self {
+            offset,
+            r#type,
+            symbol,
+            addend,
+        })
+    }
 }
